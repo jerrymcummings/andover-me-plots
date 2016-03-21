@@ -5,6 +5,9 @@ library(ggplot2)
 library(ggmap)
 library(geosphere)
 
+DO_LABELS <- TRUE
+
+
 # set number 1
 coord.list.1 <- list(
   c("N 44 38.941", "W 70 46.986"),
@@ -38,6 +41,15 @@ coord.list.2 <- list(
   c("N 44 39.040", "W 70 47.132")
 )
 
+# set number 3
+coord.list.3 <- list(
+  c("N 44 39.040", "W 70 47.132"),
+  c("N 44 38.926", "W 70 47.199"),
+  c("N 44 38.757", "W 70 47.399"),
+  
+  c("N 44 39.040", "W 70 47.132")
+)
+
 # convert to numerical format
 decimalize <- function(s) {
   chunks <- strsplit(sub("([N|S|W|E]) ([0-9]+) ([0-9.]+)", "\\1 \\2 \\3", s), ' ')
@@ -54,6 +66,7 @@ do.map <- function(desc, coord.list) {
   lat <- sapply(coord.list, function(x) decimalize(x[1]))
   lon <- sapply(coord.list, function(x) decimalize(x[2]))
   df <- data.frame(lon, lat)
+  df$n <- 1:nrow(df) - 1 # allow 0th point to get overwritten by last point
   
   area.square.meters <- areaPolygon(df)
   area.acres <- area.square.meters * 0.000247105
@@ -71,7 +84,14 @@ do.map <- function(desc, coord.list) {
     geom_point(data=df,
                aes(x=lon, y=lat, fill="red", alpha=0.3),
                size=3,
-               shape=21) +
+               shape=21)
+  
+  if (DO_LABELS) {
+    p1 <- p1 + 
+      geom_label(data = df, aes(x=lon, y=lat, label = n, alpha = 0.4))
+  }
+  
+  p1 <- p1 + 
     ggtitle(paste0(desc, ' - ', format(round(area.acres,2), nsmall=2), ' acres')) +
     theme(legend.position='none')
   
@@ -92,7 +112,14 @@ do.map <- function(desc, coord.list) {
     geom_point(data=df,
                aes(x=lon, y=lat, fill="red", alpha=0.3),
                size=3,
-               shape=21) +
+               shape=21)
+  
+  if (DO_LABELS) {
+    p2 <- p2 +
+      geom_label(data = df, aes(x=lon, y=lat, label = n, alpha = 0.4))
+  }
+  
+  p2 <- p2 +
     ggtitle(paste0(desc, ' - ', format(round(area.acres,2), nsmall=2), ' acres')) +
     theme(legend.position='none')
   
@@ -103,3 +130,4 @@ do.map <- function(desc, coord.list) {
 
 do.map('Plot 1', coord.list.1)
 do.map('Plot 2', coord.list.2)
+do.map('Plot 3', coord.list.3)
