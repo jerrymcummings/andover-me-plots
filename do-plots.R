@@ -45,10 +45,22 @@ coord.list.2 <- list(
 coord.list.3 <- list(
   c("N 44 39.040", "W 70 47.132"),
   c("N 44 38.926", "W 70 47.199"),
-  c("N 44 38.757", "W 70 47.399"),
+  # c("N 44 38.935", "W 70 47.249"),
+  # c("N 44 38.904", "W 70 47.266"),
+  # c("N 44 38.911", "W 70 47.356"),
+  # c("N 44 38.757", "W 70 47.399"),
+  # c("N 44 38.780", "W 70 47.499"),
+  # c("N 44 38.671", "W 70 47.530"),
+  #c("N 44 38.604", "W 70 47.246"),
+  c("N 44 38.861", "W 70 47.171"),
+  c("N 44 38.848", "W 70 47.009"),
+  c("N 44 38.930", "W 70 46.991"),
   
   c("N 44 39.040", "W 70 47.132")
 )
+
+
+####################################################################
 
 # convert to numerical format
 decimalize <- function(s) {
@@ -61,6 +73,8 @@ decimalize <- function(s) {
   x
 }
 
+
+####################################################################
 
 do.map <- function(desc, coord.list) {
   lat <- sapply(coord.list, function(x) decimalize(x[1]))
@@ -128,6 +142,95 @@ do.map <- function(desc, coord.list) {
   dev.off()
 }
 
-do.map('Plot 1', coord.list.1)
-do.map('Plot 2', coord.list.2)
-do.map('Plot 3', coord.list.3)
+
+####################################################################
+
+do.layered.map <- function(desc, coord.list.1, coord.list.2) {
+  lat.1 <- sapply(coord.list.1, function(x) decimalize(x[1]))
+  lon.1 <- sapply(coord.list.1, function(x) decimalize(x[2]))
+  df.1 <- data.frame(lon.1, lat.1)
+  df.1$n <- 1:nrow(df.1) - 1 # allow 0th point to get overwritten by last point
+
+  lat.2 <- sapply(coord.list.2, function(x) decimalize(x[1]))
+  lon.2 <- sapply(coord.list.2, function(x) decimalize(x[2]))
+  df.2 <- data.frame(lon.2, lat.2)
+  df.2$n <- 1:nrow(df.2) - 1 # allow 0th point to get overwritten by last point
+  
+  area.square.meters.1 <- areaPolygon(df.1)
+  area.acres.1 <- area.square.meters.1 * 0.000247105
+
+  area.square.meters.2 <- areaPolygon(df.2)
+  area.acres.2 <- area.square.meters.2 * 0.000247105
+  
+  map <- get_map(location=c(lon=mean(df.1$lon),
+                            lat=mean(df.1$lat)),
+                 source="google",
+                 maptype="terrain",
+                 zoom=15,
+                 scale=2)
+  
+  p1 <- ggmap(map) +
+    geom_polygon(data=df.1,
+                 aes(x=lon.1, y=lat.1, size=0.025, alpha=0.25)) +
+    geom_polygon(data=df.2,
+                 aes(x=lon.2, y=lat.2, size=0.025, alpha=0.25))
+    #geom_point(data=df,
+    #           aes(x=lon, y=lat, fill="red", alpha=0.3),
+    #           size=3,
+    #           shape=21)
+  
+  if (DO_LABELS) {
+    p1 <- p1 + 
+      geom_label(data = df.2, aes(x=lon.2, y=lat.2, label = n, alpha = 0.4))
+  }
+  
+  p1 <- p1 + 
+    ggtitle(paste0(desc, ' - ', format(round(area.acres.2, 2), nsmall=2), ' acres')) +
+    theme(legend.position='none')
+  
+  map <- get_map(location=c(lon=mean(df.1$lon),
+                            lat=mean(df.1$lat)),
+                 source="google",
+                 maptype="satellite",
+                 zoom=15,
+                 scale=2)
+  
+  p2 <- ggmap(map) +
+    geom_polygon(data=df.1,
+                 aes(x=lon.1, y=lat.1, alpha=0.25, color='yellow')) +
+    geom_polygon(data=df.2,
+                 aes(x=lon.2, y=lat.2, alpha=0.25, color='yellow'))
+    # geom_point(data=df.2,
+    #            aes(x=lon.2, y=lat.2, fill="red", alpha=0.3),
+    #            size=3,
+    #            shape=21)
+  
+  if (DO_LABELS) {
+    p2 <- p2 +
+      geom_label(data = df.2, aes(x=lon.2, y=lat.2, label = n, alpha = 0.4))
+  }
+  
+  p2 <- p2 +
+    ggtitle(paste0(desc, ' - ', format(round(area.acres.2,2), nsmall=2), ' acres')) +
+    theme(legend.position='none')
+  
+  # well, this is butt ugly
+  df.3 <- data.frame(apply(sapply(coord.list.3, function(x) x), 1, rev))
+  rownames(df.3) <- 1:nrow(df.3)
+  colnames(df.3) <- c('latitude', 'longitude')
+  tbl <- tableGrob(head(df.3, -1))
+  
+  pdf(file=paste0(desc, '.pdf'), onefile=TRUE)
+  grid.arrange(p2, tbl,
+               nrow=2,
+               as.table=TRUE,
+               heights=c(3,1))
+  dev.off()
+}
+
+
+####################################################################
+
+# do.map('Plot 1', coord.list.1)
+# do.map('Plot 2', coord.list.2)
+do.layered.map('Plot 3', coord.list.2, coord.list.3)
